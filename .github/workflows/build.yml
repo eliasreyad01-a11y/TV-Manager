@@ -1,0 +1,31 @@
+name: Build TV Manager APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      # Kadb ships Java 25 bytecode.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: ./gradlew :app:assemblePlayDebug --console=plain --stacktrace
+      - run: cp app/build/outputs/apk/play/debug/*.apk TVManager.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tvmanager-debug
+          path: TVManager.apk
+      - name: Publish APK as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest -y --cleanup-tag || true
+          gh release create latest TVManager.apk --title "TV Manager (latest build)" --notes "Debug build of commit ${GITHUB_SHA::7}" --target "$GITHUB_SHA"
